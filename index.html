@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="fi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Arvaa Hinta</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="game-panel" aria-labelledby="page-title">
+        <header class="topbar">
+          <div>
+            <h1 id="page-title">Arvaa Hinta</h1>
+          </div>
+          <div class="top-actions">
+            <div class="streak-pill" aria-label="Peliputki">
+              <span class="streak-icon" aria-hidden="true">P</span>
+              <span><strong id="streakCount">0</strong> päivän putki</span>
+            </div>
+            <div class="score-info-wrap">
+              <button
+                class="info-button"
+                id="scoreInfoButton"
+                type="button"
+                aria-expanded="false"
+                aria-controls="scoreRule"
+                aria-label="Näytä pisteytyksen selite"
+              >
+                i
+              </button>
+              <p class="score-rule" id="scoreRule" hidden>Pisteytys: jokainen prosentti pielessä vähentää 2 pistettä.</p>
+            </div>
+          </div>
+        </header>
+
+        <div class="hero-grid">
+          <section class="challenge-card" aria-labelledby="challengeTitle">
+            <div class="challenge-media" id="challengeMedia">
+              <img id="challengeImage" src="" alt="" />
+            </div>
+            <div class="challenge-content">
+              <div class="challenge-meta">
+                <span class="category-badge" id="categoryBadge">Tuotteet</span>
+                <span id="challengeDate">Hintabingo</span>
+              </div>
+              <h2 id="challengeTitle">Ladataan haastetta...</h2>
+              <p id="challengeDescription"></p>
+
+              <form class="guess-form" id="guessForm">
+                <label for="guessInput">Heitä arvio euroissa</label>
+                <div class="guess-input-row">
+                  <input
+                    id="guessInput"
+                    name="guess"
+                    type="text"
+                    inputmode="numeric"
+                    autocomplete="off"
+                    placeholder="esim. 149"
+                    required
+                  />
+                  <span class="currency">€</span>
+                </div>
+                <button type="submit" id="guessButton">Lukitse arvaus</button>
+              </form>
+            </div>
+          </section>
+
+          <aside class="scoreboard" aria-labelledby="scoreTitle">
+            <h2 id="scoreTitle">Kierroksen tulos</h2>
+            <div class="score-ring" id="scoreRing">
+              <span id="scoreValue">?</span>
+              <small>pistettä</small>
+            </div>
+            <p id="scoreHint">Syötä arvaus ja katso, osuiko hinta kohdilleen.</p>
+            <p class="source-note" id="sourceNote" hidden></p>
+            <div class="stat-grid" id="resultStats" hidden>
+              <div>
+                <span>Oikea hinta</span>
+                <strong id="actualPrice">-</strong>
+              </div>
+              <div>
+                <span>Arvauksesi</span>
+                <strong id="userGuess">-</strong>
+              </div>
+              <div>
+                <span>Erotus</span>
+                <strong id="difference">-</strong>
+              </div>
+              <div>
+                <span>Pielessä</span>
+                <strong id="percentOff">-</strong>
+              </div>
+            </div>
+            <button class="secondary-button" id="shareButton" type="button" hidden>
+              Jaa tulos
+            </button>
+            <button class="next-button" id="nextButton" type="button" hidden>
+              Seuraava haaste
+            </button>
+            <textarea id="shareText" readonly hidden aria-label="Jaettava tulosteksti"></textarea>
+          </aside>
+        </div>
+
+        <section class="category-strip" aria-label="Kategoriat">
+          <button class="category-chip active" type="button" data-category="Tuotteet">Tuotteet</button>
+        </section>
+
+        <section class="history-panel" aria-labelledby="historyTitle">
+          <div>
+            <p class="eyebrow">Viime pelit</p>
+            <h2 id="historyTitle">Oma hintatutka</h2>
+          </div>
+          <div class="mini-stats">
+            <div>
+              <span>Pelattu</span>
+              <strong id="playedCount">0</strong>
+            </div>
+            <div>
+              <span>Paras tulos</span>
+              <strong id="bestScore">-</strong>
+            </div>
+            <div>
+              <span>Keskiarvo</span>
+              <strong id="averageScore">-</strong>
+            </div>
+          </div>
+        </section>
+      </section>
+    </main>
+
+    <script src="script.js"></script>
+  </body>
+</html>
