@@ -443,28 +443,70 @@ const supabaseClient =
     : null;
 const trophyDefinitions = [
   {
-    id: "Hintavainu",
-    icon: "🏆",
-    title: "Hintavainu",
-    hint: "Saa vähintään 80 pistettä päivän haasteesta.",
+    id: "Ensimm\u00e4inen heitto",
+    icon: "1",
+    title: "Ensimm\u00e4inen heitto",
+    hint: "Pelaa ensimm\u00e4inen Hintabingo-kierros.",
   },
   {
-    id: "Täysosuma",
-    icon: "🎯",
-    title: "Täysosuma",
-    hint: "Arvaa hinta täysin oikein ja saa 100 pistettä.",
+    id: "Hintavainu",
+    icon: "\ud83c\udfc6",
+    title: "Hintavainu",
+    hint: "Saa v\u00e4hint\u00e4\u00e4n 80 pistett\u00e4 yhdest\u00e4 kierroksesta.",
+  },
+  {
+    id: "Tarkka vainu",
+    icon: "90",
+    title: "Tarkka vainu",
+    hint: "Saa v\u00e4hint\u00e4\u00e4n 90 pistett\u00e4 yhdest\u00e4 kierroksesta.",
+  },
+  {
+    id: "T\u00e4ysosuma",
+    icon: "\ud83c\udfaf",
+    title: "T\u00e4ysosuma",
+    hint: "Arvaa hinta t\u00e4ysin oikein ja saa 100 pistett\u00e4.",
   },
   {
     id: "Kahden euron mies",
-    icon: "€",
+    icon: "\u20ac",
     title: "Kahden euron mies",
-    hint: "Ole alle 2 euroa pielessä oikeasta hinnasta.",
+    hint: "Ole alle 2 euroa pieless\u00e4 oikeasta hinnasta.",
+  },
+  {
+    id: "Senttipeli",
+    icon: "\u00a2",
+    title: "Senttipeli",
+    hint: "Ole alle 50 sentti\u00e4 pieless\u00e4 oikeasta hinnasta.",
+  },
+  {
+    id: "Nousukunto",
+    icon: "\u2197",
+    title: "Nousukunto",
+    hint: "Paranna pisteit\u00e4 edellisest\u00e4 kierroksesta.",
+  },
+  {
+    id: "Kolmen suora",
+    icon: "3",
+    title: "Kolmen suora",
+    hint: "Ker\u00e4\u00e4 kolme v\u00e4hint\u00e4\u00e4n 80 pisteen kierrosta.",
+  },
+  {
+    id: "Pikapelaaja",
+    icon: "5",
+    title: "Pikapelaaja",
+    hint: "Pelaa viisi kierrosta saman p\u00e4iv\u00e4n aikana.",
+  },
+  {
+    id: "Maratoonari",
+    icon: "25",
+    title: "Maratoonari",
+    hint: "Pelaa yhteens\u00e4 25 kierrosta.",
   },
   {
     id: "Putkessa",
-    icon: "🔥",
+    icon: "\ud83d\udd25",
     title: "Putkessa",
-    hint: "Pelaa 7 päivää putkeen samalla nimimerkillä.",
+    hint: "Pelaa 7 p\u00e4iv\u00e4\u00e4 putkeen samalla nimimerkill\u00e4.",
   },
 ];
 const localPhotosByEan = {
@@ -589,6 +631,7 @@ let selectedCategory = "Tuotteet";
 let appState = loadState();
 let roundNumber = 0;
 let currentChallenge = getDailyChallenge();
+let isDailyRound = true;
 let activeCelebration;
 
 function loadState() {
@@ -642,6 +685,11 @@ function getChallengeForRound(category, round) {
   return pool[(dateSeed(todayKey) + round) % pool.length];
 }
 
+function getFreeRoundChallenge() {
+  roundNumber += 1;
+  return getChallengeForRound(selectedCategory, roundNumber);
+}
+
 function normalizeNickname(value) {
   return value.trim().replace(/\s+/g, " ").slice(0, 18);
 }
@@ -649,16 +697,35 @@ function normalizeNickname(value) {
 function getTodayResult() {
   const todayKey = getTodayKey();
   return appState.guesses.find(
-    (guess) => guess.date === todayKey && guess.playerName === appState.playerName
+    (guess) =>
+      guess.date === todayKey &&
+      guess.playerName === appState.playerName &&
+      guess.dailyLocked !== false
   );
 }
 
 function getAwardBadges(result) {
   const awards = [];
+  const todayRoundCount =
+    appState.guesses.filter(
+      (guess) => guess.date === result.date && guess.playerName === appState.playerName
+    ).length + 1;
+  const highScoreCount =
+    appState.guesses.filter((guess) => guess.score >= 80).length + (result.score >= 80 ? 1 : 0);
+  const previousResult = appState.guesses.find(
+    (guess) => guess.playerName === appState.playerName
+  );
 
+  if (appState.guesses.length === 0) awards.push("Ensimm\u00e4inen heitto");
   if (result.score >= 80) awards.push("Hintavainu");
+  if (result.score >= 90) awards.push("Tarkka vainu");
   if (result.score === 100) awards.push("T\u00e4ysosuma");
   if (result.difference < 2) awards.push("Kahden euron mies");
+  if (result.difference < 0.5) awards.push("Senttipeli");
+  if (previousResult && result.score > previousResult.score) awards.push("Nousukunto");
+  if (highScoreCount >= 3) awards.push("Kolmen suora");
+  if (todayRoundCount >= 5) awards.push("Pikapelaaja");
+  if (appState.guesses.length + 1 >= 25) awards.push("Maratoonari");
   if (appState.streak >= 7) awards.push("Putkessa");
 
   return awards;
@@ -753,15 +820,18 @@ function updateStreak(todayKey) {
   appState.lastPlayedDate = todayKey;
 }
 
-function renderChallenge() {
-  currentChallenge = getDailyChallenge();
+function renderChallenge(challenge = getDailyChallenge(), dailyRound = true) {
+  currentChallenge = challenge;
+  isDailyRound = dailyRound;
   elements.categoryBadge.textContent = currentChallenge.category;
-  elements.challengeDate.textContent =
-    new Intl.DateTimeFormat("fi-FI", {
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-    }).format(new Date()) + " \u00b7 p\u00e4iv\u00e4n lukittu haaste";
+  const dateLabel = new Intl.DateTimeFormat("fi-FI", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).format(new Date());
+  elements.challengeDate.textContent = isDailyRound
+    ? `${dateLabel} \u00b7 p\u00e4iv\u00e4n lukittu haaste`
+    : `${dateLabel} \u00b7 vapaa kierros ${roundNumber}`;
   elements.challengeTitle.textContent = currentChallenge.title;
   elements.challengeDescription.textContent = currentChallenge.description;
   elements.challengeImage.onerror = () => {
@@ -772,11 +842,12 @@ function renderChallenge() {
   elements.challengeImage.alt = currentChallenge.imageAlt;
 
   resetResult();
-  const todayResult = getTodayResult();
+  const todayResult = isDailyRound ? getTodayResult() : null;
 
   if (todayResult) {
     showResult(todayResult.guess, todayResult, false);
-    elements.scoreHint.textContent = "Tulos lukittu tälle päivälle. Huomenna uusi haaste.";
+    elements.scoreHint.textContent =
+      "P\u00e4iv\u00e4n tulos on lukittu. Voit silti pelata lis\u00e4\u00e4 vapailla kierroksilla.";
   }
 
   renderPlayer();
@@ -823,7 +894,9 @@ function showResult(guess, result, shouldAnimate = true) {
   elements.difference.textContent = formatEuro(result.difference);
   elements.percentOff.textContent = `${result.percentOff.toFixed(1).replace(".", ",")} %`;
   elements.shareButton.hidden = false;
-  elements.nextButton.hidden = true;
+  elements.nextButton.hidden = false;
+  elements.nextButton.textContent =
+    result.dailyLocked === false ? "Seuraava kierros" : "Pelaa lis\u00e4\u00e4";
   elements.shareText.hidden = true;
   elements.shareText.value = buildShareText(result);
   renderTrophies();
@@ -969,6 +1042,7 @@ function toLocalResult(remoteResult) {
     playedAt: remoteResult.created_at || new Date().toISOString(),
     playerName: remoteResult.nickname,
     round: 1,
+    dailyLocked: true,
     category: currentChallenge.category,
     title: remoteResult.challenge_title,
     guess: Number(remoteResult.guess),
@@ -1044,11 +1118,12 @@ elements.guessForm.addEventListener("submit", (event) => {
     return;
   }
 
-  const existingResult = getTodayResult();
+  const existingResult = isDailyRound ? getTodayResult() : null;
 
   if (existingResult) {
     showResult(existingResult.guess, existingResult, false);
-    elements.scoreHint.textContent = "Olet jo pelannut päivän haasteen.";
+    elements.scoreHint.textContent =
+      "Olet jo pelannut p\u00e4iv\u00e4n haasteen. Voit jatkaa vapailla kierroksilla.";
     return;
   }
 
@@ -1070,13 +1145,17 @@ elements.guessForm.addEventListener("submit", (event) => {
 
   const result = calculateResult(guess, currentChallenge.price);
   const todayKey = getTodayKey();
-  updateStreak(todayKey);
+
+  if (isDailyRound) {
+    updateStreak(todayKey);
+  }
 
   const savedResult = {
     date: todayKey,
     playedAt: new Date().toISOString(),
     playerName: appState.playerName,
     round: roundNumber + 1,
+    dailyLocked: isDailyRound,
     category: currentChallenge.category,
     title: currentChallenge.title,
     guess,
@@ -1093,7 +1172,10 @@ elements.guessForm.addEventListener("submit", (event) => {
   saveState();
   showResult(guess, savedResult);
   renderStats();
-  saveRemoteResult(savedResult);
+
+  if (isDailyRound) {
+    saveRemoteResult(savedResult);
+  }
 
   if (window.matchMedia("(max-width: 900px)").matches) {
     elements.shareButton.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -1101,7 +1183,8 @@ elements.guessForm.addEventListener("submit", (event) => {
 });
 
 elements.nextButton.addEventListener("click", () => {
-  elements.scoreHint.textContent = "Päivän tulos on lukittu. Uusi haaste avautuu huomenna.";
+  renderChallenge(getFreeRoundChallenge(), false);
+  elements.guessInput.focus();
 });
 
 elements.scoreInfoButton.addEventListener("click", () => {
