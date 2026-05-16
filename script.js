@@ -434,6 +434,39 @@ const challenges = [
 ];
 
 const stateKey = "arvaaHintaState";
+// Lisää nämä Supabasesta, kun haluat tallentaa tulokset pilveen.
+const SUPABASE_URL = "";
+const SUPABASE_ANON_KEY = "";
+const supabaseClient =
+  window.supabase && SUPABASE_URL && SUPABASE_ANON_KEY
+    ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+    : null;
+const trophyDefinitions = [
+  {
+    id: "Hintavainu",
+    icon: "🏆",
+    title: "Hintavainu",
+    hint: "Saa vähintään 80 pistettä päivän haasteesta.",
+  },
+  {
+    id: "Täysosuma",
+    icon: "🎯",
+    title: "Täysosuma",
+    hint: "Arvaa hinta täysin oikein ja saa 100 pistettä.",
+  },
+  {
+    id: "Kahden euron mies",
+    icon: "€",
+    title: "Kahden euron mies",
+    hint: "Ole alle 2 euroa pielessä oikeasta hinnasta.",
+  },
+  {
+    id: "Putkessa",
+    icon: "🔥",
+    title: "Putkessa",
+    hint: "Pelaa 7 päivää putkeen samalla nimimerkillä.",
+  },
+];
 const localPhotosByEan = {
   "6415600501811": "assets/product-images/coca-cola.jpg",
   "6415600502078": "assets/product-images/coca-cola-zero.jpg",
@@ -513,6 +546,11 @@ const photoOverrides = [
 ];
 const elements = {
   streakCount: document.querySelector("#streakCount"),
+  playerButton: document.querySelector("#playerButton"),
+  playerName: document.querySelector("#playerName"),
+  nicknameGate: document.querySelector("#nicknameGate"),
+  nicknameForm: document.querySelector("#nicknameForm"),
+  nicknameInput: document.querySelector("#nicknameInput"),
   challengeMedia: document.querySelector("#challengeMedia"),
   challengeImage: document.querySelector("#challengeImage"),
   categoryBadge: document.querySelector("#categoryBadge"),
@@ -528,6 +566,7 @@ const elements = {
   scoreInfoButton: document.querySelector("#scoreInfoButton"),
   scoreRule: document.querySelector("#scoreRule"),
   sourceNote: document.querySelector("#sourceNote"),
+  trophyCase: document.querySelector("#trophyCase"),
   resultStats: document.querySelector("#resultStats"),
   actualPrice: document.querySelector("#actualPrice"),
   userGuess: document.querySelector("#userGuess"),
@@ -548,8 +587,8 @@ if (elements.scoreRule && elements.scoreRing) {
 
 let selectedCategory = "Tuotteet";
 let appState = loadState();
-let roundNumber = appState.totalRounds || 0;
-let currentChallenge = getChallengeForRound(selectedCategory, roundNumber);
+let roundNumber = 0;
+let currentChallenge = getDailyChallenge();
 let activeCelebration;
 
 function loadState() {
@@ -557,12 +596,13 @@ function loadState() {
     const saved = JSON.parse(localStorage.getItem(stateKey));
     return {
       lastPlayedDate: saved?.lastPlayedDate || null,
+      playerName: saved?.playerName || "",
       streak: Number(saved?.streak) || 0,
       totalRounds: Number(saved?.totalRounds) || 0,
       guesses: Array.isArray(saved?.guesses) ? saved.guesses : [],
     };
   } catch {
-    return { lastPlayedDate: null, streak: 0, totalRounds: 0, guesses: [] };
+    return { lastPlayedDate: null, playerName: "", streak: 0, totalRounds: 0, guesses: [] };
   }
 }
 
@@ -600,6 +640,62 @@ function getChallengeForRound(category, round) {
   const pool = getChallengePool(category);
   const todayKey = getTodayKey();
   return pool[(dateSeed(todayKey) + round) % pool.length];
+}
+
+function normalizeNickname(value) {
+  return value.trim().replace(/\s+/g, " ").slice(0, 18);
+}
+
+function getTodayResult() {
+  const todayKey = getTodayKey();
+  return appState.guesses.find(
+    (guess) => guess.date === todayKey && guess.playerName === appState.playerName
+  );
+}
+
+function getAwardBadges(result) {
+  const awards = [];
+
+  if (result.score >= 80) awards.push("Hintavainu");
+  if (result.score === 100) awards.push("T\u00e4ysosuma");
+  if (result.difference < 2) awards.push("Kahden euron mies");
+  if (appState.streak >= 7) awards.push("Putkessa");
+
+  return awards;
+}
+
+function getUnlockedTrophies() {
+  return new Set(appState.guesses.flatMap((guess) => guess.awards || []));
+}
+
+function renderTrophies() {
+  const unlocked = getUnlockedTrophies();
+  elements.trophyCase.innerHTML = "";
+
+  trophyDefinitions.forEach((trophy) => {
+    const isUnlocked = unlocked.has(trophy.id);
+    const item = document.createElement("button");
+    item.className = `trophy ${isUnlocked ? "unlocked" : "locked"}`;
+    item.type = "button";
+    item.setAttribute("aria-label", `${trophy.title}: ${trophy.hint}`);
+    item.innerHTML = `
+      <span class="trophy-icon" aria-hidden="true">${trophy.icon}</span>
+      <span class="trophy-name">${trophy.title}</span>
+      <span class="trophy-tip" role="tooltip">${trophy.hint}</span>
+    `;
+    elements.trophyCase.appendChild(item);
+  });
+}
+
+function setNickname(name) {
+  appState.playerName = normalizeNickname(name);
+  saveState();
+  renderPlayer();
+  elements.nicknameGate.hidden = Boolean(appState.playerName);
+}
+
+function renderPlayer() {
+  elements.playerName.textContent = appState.playerName || "Valitse";
 }
 
 function getProductPhoto(challenge) {
@@ -658,12 +754,14 @@ function updateStreak(todayKey) {
 }
 
 function renderChallenge() {
+  currentChallenge = getDailyChallenge();
   elements.categoryBadge.textContent = currentChallenge.category;
-  elements.challengeDate.textContent = new Intl.DateTimeFormat("fi-FI", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  }).format(new Date()) + ` · hintabingo ${roundNumber + 1}`;
+  elements.challengeDate.textContent =
+    new Intl.DateTimeFormat("fi-FI", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    }).format(new Date()) + " \u00b7 p\u00e4iv\u00e4n lukittu haaste";
   elements.challengeTitle.textContent = currentChallenge.title;
   elements.challengeDescription.textContent = currentChallenge.description;
   elements.challengeImage.onerror = () => {
@@ -674,6 +772,14 @@ function renderChallenge() {
   elements.challengeImage.alt = currentChallenge.imageAlt;
 
   resetResult();
+  const todayResult = getTodayResult();
+
+  if (todayResult) {
+    showResult(todayResult.guess, todayResult, false);
+    elements.scoreHint.textContent = "Tulos lukittu tälle päivälle. Huomenna uusi haaste.";
+  }
+
+  renderPlayer();
   renderStats();
 }
 
@@ -692,6 +798,13 @@ function resetResult() {
   elements.shareButton.hidden = true;
   elements.nextButton.hidden = true;
   elements.shareText.hidden = true;
+  renderTrophies();
+
+  if (!appState.playerName) {
+    elements.guessInput.disabled = true;
+    elements.guessButton.disabled = true;
+    elements.scoreHint.textContent = "Valitse nimimerkki, niin pääset pelaamaan päivän haasteen.";
+  }
 }
 
 function showResult(guess, result, shouldAnimate = true) {
@@ -710,9 +823,10 @@ function showResult(guess, result, shouldAnimate = true) {
   elements.difference.textContent = formatEuro(result.difference);
   elements.percentOff.textContent = `${result.percentOff.toFixed(1).replace(".", ",")} %`;
   elements.shareButton.hidden = false;
-  elements.nextButton.hidden = false;
+  elements.nextButton.hidden = true;
   elements.shareText.hidden = true;
   elements.shareText.value = buildShareText(result);
+  renderTrophies();
 
   if (shouldAnimate) {
     elements.scoreRing.animate(
@@ -815,18 +929,26 @@ function getScoreMessage(score) {
 }
 
 function buildShareText(result) {
-  return [
+  const rows = [
     "Hintabingo",
+    `Nimimerkki: ${appState.playerName}`,
     `${currentChallenge.category}: ${currentChallenge.title}`,
-    `Sain ${result.score}/100 pistettä.`,
-    `Olin pielessä ${result.percentOff.toFixed(1).replace(".", ",")} %.`,
-    `Putki: ${appState.streak} päivää. Kierroksia pelattu: ${appState.guesses.length}.`,
-  ].join("\n");
+    `Sain ${result.score}/100 pistett\u00e4.`,
+    `Olin pieless\u00e4 ${result.percentOff.toFixed(1).replace(".", ",")} %.`,
+    `Putki: ${appState.streak} p\u00e4iv\u00e4\u00e4.`,
+  ];
+
+  if (result.awards?.length) {
+    rows.push(`Palkinnot: ${result.awards.join(", ")}.`);
+  }
+
+  return rows.join("\n");
 }
 
 function renderStats() {
   elements.streakCount.textContent = appState.streak;
   elements.playedCount.textContent = appState.guesses.length;
+  renderTrophies();
 
   if (!appState.guesses.length) {
     elements.bestScore.textContent = "-";
@@ -841,8 +963,95 @@ function renderStats() {
   elements.averageScore.textContent = `${average}/100`;
 }
 
+function toLocalResult(remoteResult) {
+  return {
+    date: remoteResult.play_date,
+    playedAt: remoteResult.created_at || new Date().toISOString(),
+    playerName: remoteResult.nickname,
+    round: 1,
+    category: currentChallenge.category,
+    title: remoteResult.challenge_title,
+    guess: Number(remoteResult.guess),
+    actual: Number(remoteResult.actual_price),
+    difference: Number(remoteResult.difference),
+    percentOff: Number(remoteResult.percent_off),
+    score: Number(remoteResult.score),
+    awards: Array.isArray(remoteResult.awards) ? remoteResult.awards : [],
+  };
+}
+
+async function syncLockedResultForToday() {
+  if (!supabaseClient || !appState.playerName) {
+    return;
+  }
+
+  const todayKey = getTodayKey();
+  const { data, error } = await supabaseClient
+    .from("daily_results")
+    .select("*")
+    .eq("play_date", todayKey)
+    .eq("nickname", appState.playerName)
+    .maybeSingle();
+
+  if (error || !data || getTodayResult()) {
+    return;
+  }
+
+  appState.guesses = [toLocalResult(data), ...appState.guesses].slice(0, 50);
+  appState.lastPlayedDate = todayKey;
+  saveState();
+}
+
+async function saveRemoteResult(result) {
+  if (!supabaseClient) {
+    return;
+  }
+
+  const { error } = await supabaseClient.from("daily_results").insert({
+    play_date: result.date,
+    nickname: result.playerName,
+    challenge_title: result.title,
+    guess: result.guess,
+    actual_price: result.actual,
+    difference: result.difference,
+    percent_off: result.percentOff,
+    score: result.score,
+    awards: result.awards,
+  });
+
+  if (error) {
+    console.warn("Supabase-tallennus ei onnistunut:", error.message);
+  }
+}
+
+async function initializeApp() {
+  renderPlayer();
+  elements.nicknameGate.hidden = Boolean(appState.playerName);
+
+  if (appState.playerName) {
+    await syncLockedResultForToday();
+  }
+
+  renderChallenge();
+}
+
 elements.guessForm.addEventListener("submit", (event) => {
   event.preventDefault();
+
+  if (!appState.playerName) {
+    elements.nicknameGate.hidden = false;
+    elements.nicknameInput.focus();
+    return;
+  }
+
+  const existingResult = getTodayResult();
+
+  if (existingResult) {
+    showResult(existingResult.guess, existingResult, false);
+    elements.scoreHint.textContent = "Olet jo pelannut päivän haasteen.";
+    return;
+  }
+
   const guess = parseGuess(elements.guessInput.value);
 
   if (!Number.isFinite(guess) || guess <= 0) {
@@ -866,6 +1075,7 @@ elements.guessForm.addEventListener("submit", (event) => {
   const savedResult = {
     date: todayKey,
     playedAt: new Date().toISOString(),
+    playerName: appState.playerName,
     round: roundNumber + 1,
     category: currentChallenge.category,
     title: currentChallenge.title,
@@ -875,6 +1085,7 @@ elements.guessForm.addEventListener("submit", (event) => {
     percentOff: result.percentOff,
     score: result.score,
   };
+  savedResult.awards = getAwardBadges(savedResult);
 
   appState.totalRounds = roundNumber + 1;
   appState.guesses = [savedResult, ...appState.guesses].slice(0, 50);
@@ -882,24 +1093,15 @@ elements.guessForm.addEventListener("submit", (event) => {
   saveState();
   showResult(guess, savedResult);
   renderStats();
+  saveRemoteResult(savedResult);
 
   if (window.matchMedia("(max-width: 900px)").matches) {
-    elements.nextButton.scrollIntoView({ behavior: "smooth", block: "center" });
+    elements.shareButton.scrollIntoView({ behavior: "smooth", block: "center" });
   }
 });
 
 elements.nextButton.addEventListener("click", () => {
-  roundNumber += 1;
-  appState.totalRounds = roundNumber;
-  currentChallenge = getChallengeForRound(selectedCategory, roundNumber);
-  saveState();
-  renderChallenge();
-
-  if (window.matchMedia("(max-width: 900px)").matches) {
-    elements.challengeTitle.scrollIntoView({ behavior: "smooth", block: "start" });
-  }
-
-  elements.guessInput.focus();
+  elements.scoreHint.textContent = "Päivän tulos on lukittu. Uusi haaste avautuu huomenna.";
 });
 
 elements.scoreInfoButton.addEventListener("click", () => {
@@ -923,6 +1125,26 @@ elements.shareButton.addEventListener("click", async () => {
   }
 });
 
+elements.playerButton.addEventListener("click", () => {
+  elements.nicknameGate.hidden = false;
+  elements.nicknameInput.value = appState.playerName;
+  elements.nicknameInput.focus();
+});
+
+elements.nicknameForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const nickname = normalizeNickname(elements.nicknameInput.value);
+
+  if (nickname.length < 2) {
+    elements.nicknameInput.focus();
+    return;
+  }
+
+  setNickname(nickname);
+  await syncLockedResultForToday();
+  renderChallenge();
+});
+
 elements.categoryChips.forEach((chip) => {
   chip.addEventListener("click", () => {
     selectedCategory = chip.dataset.category;
@@ -932,4 +1154,4 @@ elements.categoryChips.forEach((chip) => {
   });
 });
 
-renderChallenge();
+initializeApp();

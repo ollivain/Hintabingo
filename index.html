@@ -14,6 +14,10 @@
             <h1 id="page-title">Hintabingo</h1>
           </div>
           <div class="top-actions">
+            <button class="player-pill" id="playerButton" type="button" aria-label="Vaihda nimimerkki">
+              <span>Nimimerkki</span>
+              <strong id="playerName">-</strong>
+            </button>
             <div class="streak-pill" aria-label="Peliputki">
               <span class="streak-icon" aria-hidden="true">P</span>
               <span><strong id="streakCount">0</strong> päivän putki</span>
@@ -96,7 +100,7 @@
               Jaa tulos
             </button>
             <button class="next-button" id="nextButton" type="button" hidden>
-              Seuraava haaste
+              Huomenna uusi haaste
             </button>
             <textarea id="shareText" readonly hidden aria-label="Jaettava tulosteksti"></textarea>
           </aside>
@@ -125,10 +129,23 @@
               <strong id="averageScore">-</strong>
             </div>
           </div>
+          <div class="trophy-case" id="trophyCase" aria-label="Palkinnot"></div>
         </section>
       </section>
     </main>
 
+    <div class="nickname-gate" id="nicknameGate" hidden>
+      <form class="nickname-card" id="nicknameForm">
+        <p class="eyebrow">Päivän lukittu haaste</p>
+        <h2>Valitse nimimerkki</h2>
+        <p>Tarvitset nimimerkin, jotta päivän tulos voidaan lukita ja palkinnot tallentaa.</p>
+        <label for="nicknameInput">Nimimerkki</label>
+        <input id="nicknameInput" name="nickname" type="text" maxlength="18" autocomplete="nickname" placeholder="esim. Hintamestari" required />
+        <button type="submit">Aloita peli</button>
+      </form>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="script.js"></script>
   </body>
 </html>
