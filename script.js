@@ -542,10 +542,15 @@ const elements = {
   categoryChips: document.querySelectorAll(".category-chip"),
 };
 
+if (elements.scoreRule && elements.scoreRing) {
+  elements.scoreRing.before(elements.scoreRule);
+}
+
 let selectedCategory = "Tuotteet";
 let appState = loadState();
 let roundNumber = appState.totalRounds || 0;
 let currentChallenge = getChallengeForRound(selectedCategory, roundNumber);
+let activeCelebration;
 
 function loadState() {
   try {
@@ -673,6 +678,7 @@ function renderChallenge() {
 }
 
 function resetResult() {
+  clearPerfectCelebration();
   elements.guessInput.value = "";
   elements.guessInput.disabled = false;
   elements.guessButton.disabled = false;
@@ -717,10 +723,90 @@ function showResult(guess, result, shouldAnimate = true) {
       ],
       { duration: 520, easing: "cubic-bezier(.2,.8,.2,1)" }
     );
+
+    if (result.score === 100) {
+      triggerPerfectCelebration();
+    }
   }
 }
 
+function clearPerfectCelebration() {
+  if (activeCelebration) {
+    activeCelebration.remove();
+    activeCelebration = null;
+  }
+  document.body.classList.remove("perfect-score-active");
+}
+
+function triggerPerfectCelebration() {
+  clearPerfectCelebration();
+  document.body.classList.add("perfect-score-active");
+
+  activeCelebration = document.createElement("div");
+  activeCelebration.className = "perfect-burst";
+  activeCelebration.setAttribute("aria-hidden", "true");
+
+  const toast = document.createElement("div");
+  toast.className = "perfect-toast";
+  toast.textContent = "Täydet 100 pistettä!";
+  activeCelebration.appendChild(toast);
+
+  const colors = ["#8b5cf6", "#f97316", "#22c55e", "#06b6d4", "#facc15", "#ec4899"];
+
+  for (let index = 0; index < 46; index += 1) {
+    const piece = document.createElement("span");
+    piece.className = "confetti-bit";
+    piece.style.setProperty("--x", `${Math.random() * 100}vw`);
+    piece.style.setProperty("--dx", `${Math.random() * 220 - 110}px`);
+    piece.style.setProperty("--delay", `${Math.random() * 0.18}s`);
+    piece.style.setProperty("--spin", `${Math.random() * 720 - 360}deg`);
+    piece.style.background = colors[index % colors.length];
+    activeCelebration.appendChild(piece);
+  }
+
+  document.body.appendChild(activeCelebration);
+  playPerfectSound();
+
+  window.setTimeout(() => {
+    clearPerfectCelebration();
+  }, 2200);
+}
+
+function playPerfectSound() {
+  const AudioContext = window.AudioContext || window.webkitAudioContext;
+
+  if (!AudioContext) {
+    return;
+  }
+
+  const context = new AudioContext();
+  const master = context.createGain();
+  master.gain.setValueAtTime(0.0001, context.currentTime);
+  master.gain.exponentialRampToValueAtTime(0.18, context.currentTime + 0.02);
+  master.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + 1.05);
+  master.connect(context.destination);
+
+  [523.25, 659.25, 783.99, 1046.5].forEach((frequency, index) => {
+    const oscillator = context.createOscillator();
+    const gain = context.createGain();
+    const start = context.currentTime + index * 0.08;
+    oscillator.type = "triangle";
+    oscillator.frequency.setValueAtTime(frequency, start);
+    gain.gain.setValueAtTime(0.0001, start);
+    gain.gain.exponentialRampToValueAtTime(0.34, start + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.26);
+    oscillator.connect(gain).connect(master);
+    oscillator.start(start);
+    oscillator.stop(start + 0.32);
+  });
+
+  window.setTimeout(() => {
+    context.close();
+  }, 1300);
+}
+
 function getScoreMessage(score) {
+  if (score === 100) return "Täydellinen osuma. Hintavaisto kävi kuumana.";
   if (score >= 95) return "Täysosuman tuntua. Nyt oli hintavaisto kohdillaan.";
   if (score >= 80) return "Hyvä osuma. Pieni heitto, mutta vahva kierros.";
   if (score >= 55) return "Kelpo arvaus, mutta hintalappu ei ihan auennut.";
@@ -730,7 +816,7 @@ function getScoreMessage(score) {
 
 function buildShareText(result) {
   return [
-    "Arvaa Hinta",
+    "Hintabingo",
     `${currentChallenge.category}: ${currentChallenge.title}`,
     `Sain ${result.score}/100 pistettä.`,
     `Olin pielessä ${result.percentOff.toFixed(1).replace(".", ",")} %.`,
@@ -796,6 +882,10 @@ elements.guessForm.addEventListener("submit", (event) => {
   saveState();
   showResult(guess, savedResult);
   renderStats();
+
+  if (window.matchMedia("(max-width: 900px)").matches) {
+    elements.nextButton.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
 });
 
 elements.nextButton.addEventListener("click", () => {
@@ -804,6 +894,11 @@ elements.nextButton.addEventListener("click", () => {
   currentChallenge = getChallengeForRound(selectedCategory, roundNumber);
   saveState();
   renderChallenge();
+
+  if (window.matchMedia("(max-width: 900px)").matches) {
+    elements.challengeTitle.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
   elements.guessInput.focus();
 });
 

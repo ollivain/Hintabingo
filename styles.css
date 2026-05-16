@@ -60,6 +60,99 @@ body::after {
   background-size: 34px 34px, 46px 46px, 58px 58px;
 }
 
+body.perfect-score-active .game-panel {
+  animation: perfectPanelPulse 900ms ease;
+}
+
+.perfect-burst {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.perfect-toast {
+  position: absolute;
+  left: 50%;
+  top: clamp(86px, 14vh, 150px);
+  transform: translateX(-50%);
+  padding: 16px 22px;
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  border-radius: 999px;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(245, 237, 255, 0.94)),
+    linear-gradient(135deg, #8b5cf6, #f97316);
+  color: var(--ink);
+  box-shadow:
+    0 24px 60px rgba(88, 28, 135, 0.28),
+    0 0 0 8px rgba(139, 92, 246, 0.12);
+  font-size: clamp(1.05rem, 3vw, 1.45rem);
+  font-weight: 950;
+  white-space: nowrap;
+  animation: perfectToast 1.9s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}
+
+.confetti-bit {
+  position: absolute;
+  left: var(--x);
+  top: -18px;
+  width: 10px;
+  height: 18px;
+  border-radius: 4px;
+  opacity: 0;
+  transform: translateY(0) translateX(0) rotate(0);
+  animation: confettiFall 1.85s cubic-bezier(0.18, 0.74, 0.28, 1) var(--delay) forwards;
+}
+
+@keyframes perfectPanelPulse {
+  0%,
+  100% {
+    box-shadow: var(--shadow);
+  }
+
+  42% {
+    box-shadow:
+      0 34px 100px rgba(55, 36, 91, 0.3),
+      0 0 0 8px rgba(139, 92, 246, 0.18),
+      0 0 90px rgba(250, 204, 21, 0.32);
+  }
+}
+
+@keyframes perfectToast {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-18px) scale(0.86);
+  }
+
+  16%,
+  76% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-10px) scale(0.96);
+  }
+}
+
+@keyframes confettiFall {
+  0% {
+    opacity: 0;
+    transform: translateY(0) translateX(0) rotate(0);
+  }
+
+  10% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateY(108vh) translateX(var(--dx)) rotate(var(--spin));
+  }
+}
+
 button,
 input,
 textarea {
@@ -198,10 +291,10 @@ h1 {
 
 .score-rule {
   position: absolute;
-  top: calc(100% + 10px);
-  right: 0;
-  z-index: 5;
-  width: min(280px, calc(100vw - 48px));
+  top: 58px;
+  left: 50%;
+  z-index: 6;
+  width: min(300px, calc(100% - 36px));
   margin: 0;
   padding: 13px 15px;
   border: 1px solid rgba(107, 80, 148, 0.18);
@@ -212,6 +305,9 @@ h1 {
   font-size: 0.86rem;
   font-weight: 800;
   line-height: 1.35;
+  text-align: center;
+  transform: translateX(-50%);
+  backdrop-filter: blur(16px);
 }
 
 .hero-grid {
@@ -396,6 +492,7 @@ button {
 }
 
 .scoreboard {
+  position: relative;
   height: var(--round-card-height);
   min-height: 0;
   overflow: hidden;
@@ -585,13 +682,10 @@ button {
     flex-direction: column;
   }
 
-  .score-rule {
-    left: 0;
-    right: auto;
-  }
-
   .hero-grid {
     grid-template-columns: 1fr;
+    gap: 14px;
+    margin-top: 22px;
   }
 
   .challenge-card {
@@ -613,11 +707,36 @@ button {
   .mini-stats {
     grid-template-columns: 1fr;
   }
+
+  .scoreboard {
+    height: auto;
+    min-height: 0;
+    overflow: visible;
+  }
 }
 
 @media (max-width: 520px) {
+  .app-shell {
+    width: 100%;
+    padding: 0;
+  }
+
   .game-panel {
+    min-height: 100vh;
     padding: 12px;
+    border-radius: 0;
+  }
+
+  .topbar {
+    gap: 12px;
+  }
+
+  h1 {
+    font-size: clamp(3rem, 16vw, 4.7rem);
+  }
+
+  .streak-pill {
+    padding: 9px 12px;
   }
 
   .challenge-content,
@@ -625,7 +744,15 @@ button {
     padding: 18px;
   }
 
-  .stat-grid {
-    grid-template-columns: 1fr;
+  .challenge-content h2 {
+    font-size: clamp(1.75rem, 9vw, 2.35rem);
+  }
+
+  .guess-input-row input {
+    min-height: 58px;
+  }
+
+  .score-ring {
+    width: min(170px, 58vw);
   }
 }
